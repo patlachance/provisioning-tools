@@ -21,3 +21,7 @@ end
 action "free_ips", :description => "" do
     display :always
 end
+
+action "allocate_cnames", :description => "" do
+    display :always
+end
