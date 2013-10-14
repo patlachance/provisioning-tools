@@ -122,6 +122,27 @@ class Provision::DNSNetwork
      }
   end
 
+  def add_cnames_for(spec)
+    cnames = spec[:cnames][@name]
+
+    cnames.each do |fqdn, cname|
+      existing_cname = lookup_cname_for(fqdn)
+      if existing_cname
+        if existing_cname == cname
+          next
+        else
+          # Should we be unallocating here if it's already allocated?
+          raise("fqdn: #{fqdn} is already a cname for: #{existing_cname}")
+        end
+      else
+        add_cname_lookup(fqdn, cname)
+      end
+    end
+
+    raise "unable to resolve cname #{fqdn} -> #{cname}" unless @checker.resolve_cname(hostname).include?(cname)
+
+  end
+
 end
 
 class Provision::DNS
@@ -181,25 +202,20 @@ class Provision::DNS
     return remove_results
   end
 
-  def allocate_cname_for(fqdn, cname)
-    existing_cname = backend.lookup_cname_for(fqdn)
-    if existing_cname
-      if existing_cname == cname
-        return nil
-      else
-        # Should be be unallocating here if it's already allocated?
-        raise("fqdn: #{fqdn} is already a cname for: #{existing_cname}")
-      end
-    else
-      backend.add_cname_lookup(fqdn, cname)
+  def allocate_cnames_for(spec)
+
+    raise("No networks for this machine, cannot allocate any IPs") if spec.networks.empty?
+    @logger.info "BLAH: #{spec.inspect}"
+
+    spec.networks.each do |network_name|
+      network = network_name.to_sym
+      @logger.info("Trying to allocate CNAMEs for network #{network}")
+      next unless @networks.has_key?(network)
+      @networks[network].add_cnames_for(spec)
+# FIXME: Add some useful logging
+#      @logger.info("Allocated #{allocations[network][:address]}")
     end
 
-    raise "unable to resolve cname #{fqdn} -> #{cname}" unless @checker.resolve_cname(hostname).include?(cname)
-
-#    return {
-#      :netmask => @subnet_mask.to_s,
-#      :address => ip.to_s
-#    }
   end
 
   def free_cname_for(fqdn)

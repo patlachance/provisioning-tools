@@ -60,9 +60,11 @@ class Provision::WorkQueue
     process()
   end
 
-  def allocate_cnames(cnames)
-    cnames.each do |fqdn, cname|
-      @provisioning_service.allocate_cname(fqdn, cname)
+  def allocate_cnames(specs)
+    specs.each do |spec|
+      @queue << SpecTask.new(spec) do
+        @provisioning_service.allocate_cnames(spec)
+      end
     end
     process()
   end

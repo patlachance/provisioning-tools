@@ -57,7 +57,7 @@ module MCollective
 
       def allocate_cnames(specs, listener)
         queue = prepare_work_queue(specs, listener)
-        logger.info("Allocating CNAMEs for #{specs.size} nodes")
+        logger.info("Allocating CNAMEs #{specs}")
         queue.allocate_cnames(specs)
         return listener.results
       end

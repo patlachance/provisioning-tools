@@ -48,8 +48,10 @@ class Provision::Core::ProvisioningService
     return networking.values.map { |n| n[:address] }.sort.join(", ")
   end
 
-  def allocate_cname(fqdn, cname)
-    @numbering_service.allocate_cname_for(fqdn, cname)
+  def allocate_cnames(spec_hash)
+    spec = Provision::Core::MachineSpec.new(spec_hash)
+    @numbering_service.allocate_cnames_for(spec)
+    # FIXME: Maybe return something to here so we can log something useful?
     return nil
   end
 
