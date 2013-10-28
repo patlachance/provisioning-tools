@@ -123,7 +123,8 @@ class Provision::DNSNetwork
   end
 
   def add_cnames_for(spec)
-    cnames = spec[:cnames][@name]
+    unwrapped_spec = spec.spec
+    cnames = unwrapped_spec[:cnames]
 
     cnames.each do |fqdn, cname|
       existing_cname = lookup_cname_for(fqdn)
@@ -205,7 +206,6 @@ class Provision::DNS
   def allocate_cnames_for(spec)
 
     raise("No networks for this machine, cannot allocate any IPs") if spec.networks.empty?
-    @logger.info "BLAH: #{spec.inspect}"
 
     spec.networks.each do |network_name|
       network = network_name.to_sym
