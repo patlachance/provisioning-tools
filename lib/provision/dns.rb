@@ -14,6 +14,7 @@ class Provision::DNSChecker
  attr_reader :logger
  def initialize(options)
    @logger = options[:logger] || Logger.new(STDERR)
+   @primary_nameserver = options[:primary_nameserver] || '192.168.5.1'
  end
  def resolve(record, element, max_attempts=10)
     attempt = 1
@@ -42,6 +43,22 @@ class Provision::DNSChecker
     resolve(ip, 2)
   end
 
+  def resolve_cname(fqdn)
+    resolver = Resolv::DNS.new(
+      :nameserver => @primary_nameserver,
+      :search => [],
+      :ndots => 1
+    )
+
+    begin
+      cname = resolver.getresource(fqdn, Resolv::DNS::Resource::IN::CNAME)
+      return cname.name if cname
+    rescue Resolv::ResolvError
+      puts "Could not find cname for #{fqdn}"
+      return nil
+    end
+  end
+
 end
 
 class Provision::DNSNetwork
@@ -52,7 +69,8 @@ class Provision::DNSNetwork
     @subnet = IPAddr.new(range)
     @subnet.extend(IPAddrExtensions)
     @logger = options[:logger] || Logger.new(STDERR)
-    @checker = options[:checker] || Provision::DNSChecker.new(:logger => @logger)
+    @primary_nameserver = options[:primary_nameserver] || raise("must specify a primary_nameserver")
+    @checker = options[:checker] || Provision::DNSChecker.new(:logger => @logger, :primary_nameserver => @primary_nameserver)
 
     parts = range.split('/')
     if parts.size != 2
@@ -69,7 +87,6 @@ class Provision::DNSNetwork
     max_allocation = options[:max_allocation] || @broadcast.to_i - 1
     @max_allocation = IPAddr.new(max_allocation, Socket::AF_INET)
 
-    @primary_nameserver = options[:primary_nameserver] || raise("must specify a primary_nameserver")
   end
 
   def hostname_from_spec(spec)
@@ -126,21 +143,26 @@ class Provision::DNSNetwork
     unwrapped_spec = spec.spec
     cnames = unwrapped_spec[:cnames]
 
-    cnames.each do |fqdn, cname|
-      existing_cname = lookup_cname_for(fqdn)
-      if existing_cname
-        if existing_cname == cname
-          next
+    result = {}
+    cnames.each do |network_name, records|
+      records.each do |fqdn, cname|
+        existing_cname = lookup_cname_for(fqdn)
+        if existing_cname
+          if existing_cname == cname
+            result.merge!({fqdn => cname})
+            next
+          else
+            # Should we be unallocating here if it's already allocated?
+            raise("fqdn: #{fqdn} is already a cname for: #{existing_cname}")
+          end
         else
-          # Should we be unallocating here if it's already allocated?
-          raise("fqdn: #{fqdn} is already a cname for: #{existing_cname}")
+          add_cname_lookup(fqdn, cname)
         end
-      else
-        add_cname_lookup(fqdn, cname)
+        result.merge!({fqdn => cname})
+        raise "unable to resolve cname #{fqdn} -> #{cname}" unless @checker.resolve_cname(fqdn) == cname
       end
     end
-
-    raise "unable to resolve cname #{fqdn} -> #{cname}" unless @checker.resolve_cname(hostname).include?(cname)
+    result
 
   end
 
@@ -206,16 +228,15 @@ class Provision::DNS
   def allocate_cnames_for(spec)
 
     raise("No networks for this machine, cannot allocate any IPs") if spec.networks.empty?
-
+    result = {}
     spec.networks.each do |network_name|
       network = network_name.to_sym
       @logger.info("Trying to allocate CNAMEs for network #{network}")
       next unless @networks.has_key?(network)
-      @networks[network].add_cnames_for(spec)
-# FIXME: Add some useful logging
-#      @logger.info("Allocated #{allocations[network][:address]}")
+      result.merge!(@networks[network].add_cnames_for(spec))
     end
-
+    @logger.info("Allocated #{result}")
+    result
   end
 
   def free_cname_for(fqdn)

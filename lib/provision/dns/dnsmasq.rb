@@ -89,7 +89,7 @@ class Provision::DNS::DNSMasqNetwork < Provision::DNSNetwork
     @cnames_by_fqdn = {}
     File.open(@cnames_file).each { |l|
       next unless l =~ /^cname=/
-      splits = l.gsub(/^cname=/, '').split(',')
+      splits = l.strip.gsub(/^cname=/, '').split(',')
       raise("Bad cname entry in #{@cnames_file}, it contains a cname with #{splits.length} entries instead of 2") if splits.length != 2
       @cnames_by_fqdn[splits[0]] = splits[1]
     }

@@ -20,7 +20,7 @@ printrpc mc.allocate_cnames(:specs => [
     },
     :cnames => {
       :prod => {
-        'a' => 'my-tasty-cname.domain.tld',
+        'c.dev.net.local' => 'dev-refproxy-001.dev.net.local',
       }
     },
     :ram => '2097152',
@@ -40,8 +40,8 @@ printrpc mc.allocate_cnames(:specs => [
     },
     :cnames => {
       :prod => {
-        'a.dev.net.local' => 'my-tasty-cname.domain.tld',
-        'b.dev.net.local' => 'my-tasty-cname.domain.tld',
+        'a.dev.net.local' => 'dev-refproxy-001.dev.net.local',
+        'b.dev.net.local' => 'dev-refproxy-001.dev.net.local',
       }
     },
     :ram => '2097152',
