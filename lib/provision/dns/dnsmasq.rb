@@ -54,7 +54,7 @@ class Provision::DNS::DNSMasqNetwork < Provision::DNSNetwork
     $etc_hosts_mutex.synchronize do
       parse_cnames
       cname_by_fqdn = @cnames_by_fqdn[fqdn]
-      if cnames_by_fqdn
+      if cname_by_fqdn
         return false if cname_by_fqdn != cname_fqdn
       else
         File.open(@cnames_file, 'a') { |f|

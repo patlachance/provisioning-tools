@@ -5,8 +5,8 @@ include MCollective::RPC
 mc = rpcclient("computenode")
 mc.identity_filter "grichards-desktop.youdevise.com"
 mc.verbose = true
-# printrpc mc.allocate_cnames(:specs => [
-printrpc mc.allocate_ips(:specs => [
+printrpc mc.allocate_cnames(:specs => [
+#printrpc mc.allocate_ips(:specs => [
   {
     :networks => [
       :mgmt,
