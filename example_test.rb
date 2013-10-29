@@ -3,7 +3,7 @@ require 'mcollective'
 include MCollective::RPC
 
 mc = rpcclient("computenode")
-mc.identity_filter "grichards-desktop.youdevise.com"
+mc.identity_filter "ldn-dev-rpearce.youdevise.com"
 mc.verbose = true
 specs = [
   {

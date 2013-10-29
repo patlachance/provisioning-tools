@@ -93,8 +93,8 @@ describe Provision::DNS::DNSMasq do
   end
 
   def expect_cname_checks(allocations)
-    allocations.each do |fqdn, cname|
-      @checker.should_receive(:resolve_cname).with(fqdn).and_return(cname)
+    allocations.each do |hostname, ip|
+      @checker.should_receive(:resolve_forward).with(hostname).and_return(ip)
     end
   end
 
@@ -311,8 +311,14 @@ describe Provision::DNS::DNSMasq do
         }
       )
 
-      expect_checks('example.mgmt.youdevise.com' => '192.168.5.2', 'example.youdevise.com' => '192.168.6.2')
-      expect_cname_checks('cname1.youdevise.com' => 'example.youdevise.com')
+      expect_checks(
+        'example.mgmt.youdevise.com' => '192.168.5.2',
+        'example.youdevise.com' => '192.168.6.2'
+      )
+
+      expect_cname_checks(
+        'cname1.youdevise.com' => 'example.youdevise.com'
+      )
 
       thing.allocate_ips_for(spec)
       thing.allocate_cnames_for(spec)

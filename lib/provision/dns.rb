@@ -16,6 +16,7 @@ class Provision::DNSChecker
    @logger = options[:logger] || Logger.new(STDERR)
    @primary_nameserver = options[:primary_nameserver] || '192.168.5.1'
  end
+
  def resolve(record, element, max_attempts=10)
     attempt = 1
     addrinfo = Set.new()
@@ -43,28 +44,6 @@ class Provision::DNSChecker
     resolve(ip, 2)
   end
 
-  def resolve_cname(fqdn)
-    resolver = Resolv::DNS.new(
-      :nameserver => @primary_nameserver,
-      :search => [],
-      :ndots => 1
-    )
-    attempt = 1
-    max_attempts = 10
-    while (attempt <= max_attempts)
-      msg = "Lookup #{fqdn} (#{attempt}/#{max_attempts})"
-      begin
-        cname = resolver.getresource(fqdn, Resolv::DNS::Resource::IN::CNAME)
-        return cname.name if cname
-      rescue Exception => e
-        puts "Gary likes biscuits, nom nom #{e.backtrace}"
-      end
-      sleep 1
-      attempt = attempt +1
-   end
-   raise "Lookup #{fqdn} failed after #{max_attempts} attempts" if (attempt <= max_attempts)
-  end
-
 end
 
 class Provision::DNSNetwork
@@ -77,7 +56,6 @@ class Provision::DNSNetwork
     @logger = options[:logger] || Logger.new(STDERR)
     @primary_nameserver = options[:primary_nameserver] || raise("must specify a primary_nameserver")
     @checker = options[:checker] || Provision::DNSChecker.new(:logger => @logger, :primary_nameserver => @primary_nameserver)
-
     parts = range.split('/')
     if parts.size != 2
       raise(":network_range must be of the format X.X.X.X/Y")
@@ -165,7 +143,8 @@ class Provision::DNSNetwork
           add_cname_lookup(fqdn, cname)
         end
         result.merge!({fqdn => cname})
-        raise "unable to resolve cname #{fqdn} -> #{cname}" unless @checker.resolve_cname(fqdn) == cname
+
+        raise "unable to resolve cname #{fqdn} -> #{cname}" unless @checker.resolve_forward(fqdn)
       end
     end
     result
