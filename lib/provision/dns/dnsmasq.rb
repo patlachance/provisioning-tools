@@ -6,6 +6,8 @@ require 'thread'
 $etc_hosts_mutex = Mutex.new
 $etc_dnsmasqd_mutex = Mutex.new
 
+$: << File.join(File.dirname(__FILE__), "..", "..", "..")
+
 class Provision::DNS::DNSMasq < Provision::DNS
 end
 
@@ -22,7 +24,7 @@ class Provision::DNS::DNSMasqNetwork < Provision::DNSNetwork
     @cnames_file = options[:cnames_file] || "/etc/dnsmasq.d/cnames"
     @dnsmasq_pid_file = options[:pid_file] || "/var/run/dnsmasq.pid"
     parse_hosts
-    parse_cnames
+#    parse_cnames
   end
 
   def lookup_ip_for(fqdn)
@@ -52,24 +54,39 @@ class Provision::DNS::DNSMasqNetwork < Provision::DNSNetwork
 
   def add_cname_lookup(fqdn, cname_fqdn)
     $etc_hosts_mutex.synchronize do
-      parse_cnames
-      cname_by_fqdn = @cnames_by_fqdn[fqdn]
-      if cname_by_fqdn
-        return false if cname_by_fqdn != cname_fqdn
+      parse_hosts
+      return if @cnames_by_fqdn[fqdn] == cname_fqdn
+      ip = @by_name[cname_fqdn]
+      if ip
+        temp_file = Tempfile.new('etc_hosts_update')
+        begin
+          File.open(@hosts_file, 'r') do |file|
+            file.each_line do |line|
+              if line =~ /^#{Regexp.escape(ip)}\s+/
+                temp_file.puts line.strip + " #{fqdn}"
+              else
+                temp_file.puts line
+              end
+            end
+          end
+          temp_file.rewind
+          FileUtils.mv(temp_file.path, @hosts_file)
+          File.chmod(0644, @hosts_file)
+          reload_dnsmasq
+        ensure
+          temp_file.close
+          temp_file.unlink
+        end
       else
-        File.open(@cnames_file, 'a') { |f|
-          f.write "cname=#{fqdn},#{cname_fqdn}\n"
-          f.chmod(0644)
-        }
-        reload_dnsmasq
+        raise "Unable to add CNAME for '#{fqdn}' as CNAME: '#{cname_fqdn}' does not have an IP address associated with it"
       end
-      return true
     end
   end
 
   def parse_hosts
     @by_name = {}
     @by_ip = {}
+    @cnames_by_fqdn = {}
     File.open(@hosts_file).each { |l|
       next if l =~ /^#/
       next if l =~ /^\s*$/
@@ -78,22 +95,23 @@ class Provision::DNS::DNSMasqNetwork < Provision::DNSNetwork
       ip = splits[0]
       names = splits[1..-1]
       next unless @subnet.include?(ip)
-      names.each { |n|
-        @by_name[n] = ip
-        @by_ip[ip] = n
+      names.each_index { |i|
+        name = names[i]
+        @by_name[name] = ip
+        @by_ip[ip] = name if i == 0
+        @cnames_by_fqdn[name] = names[0] if i > 0
       }
     }
   end
 
-  def parse_cnames
-    @cnames_by_fqdn = {}
-    File.open(@cnames_file).each { |l|
-      next unless l =~ /^cname=/
-      splits = l.strip.gsub(/^cname=/, '').split(',')
-      raise("Bad cname entry in #{@cnames_file}, it contains a cname with #{splits.length} entries instead of 2") if splits.length != 2
-      @cnames_by_fqdn[splits[0]] = splits[1]
-    }
-  end
+#  def parse_cnames
+#    File.open(@cnames_file).each { |l|
+#      next unless l =~ /^cname=/
+#      splits = l.strip.gsub(/^cname=/, '').split(',')
+#      raise("Bad cname entry in #{@cnames_file}, it contains a cname with #{splits.length} entries instead of 2") if splits.length != 2
+#      @cnames_by_fqdn[splits[0]] = splits[1]
+#    }
+#  end
 
   # This does nothing in this class
   def remove_forward_lookup(fqdn)
@@ -105,12 +123,18 @@ class Provision::DNS::DNSMasqNetwork < Provision::DNSNetwork
     hosts_removed > 0 ? reload_dnsmasq : false
   end
 
-  def reload_dnsmasq
+  def reload_dnsmasq(signal='HUP')
     if (File.exists?(@dnsmasq_pid_file))
       pid = File.open(@dnsmasq_pid_file).first.to_i
       puts "Reloading dnsmasq (#{pid})"
-      Process.kill("HUP", pid)
+      Process.kill(signal, pid)
+      start_dnsmasq if signal == 'KILL'
     end
+  end
+
+  def start_dnsmasq
+     output = `networking/numbering_service.sh`
+     raise output if $?.exitstatus != 0
   end
 
   def remove_lines_from_file(regex,file)
@@ -129,11 +153,4 @@ class Provision::DNS::DNSMasqNetwork < Provision::DNSNetwork
     return found
   end
 
-  def reload_dnsmasq
-    if (File.exists?(@dnsmasq_pid_file))
-      pid = File.open(@dnsmasq_pid_file).first.to_i
-      puts "Reloading dnsmasq (#{pid})"
-      Process.kill("HUP", pid)
-    end
-  end
 end

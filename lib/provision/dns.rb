@@ -49,14 +49,20 @@ class Provision::DNSChecker
       :search => [],
       :ndots => 1
     )
-
-    begin
-      cname = resolver.getresource(fqdn, Resolv::DNS::Resource::IN::CNAME)
-      return cname.name if cname
-    rescue Resolv::ResolvError
-      puts "Could not find cname for #{fqdn}"
-      return nil
-    end
+    attempt = 1
+    max_attempts = 10
+    while (attempt <= max_attempts)
+      msg = "Lookup #{fqdn} (#{attempt}/#{max_attempts})"
+      begin
+        cname = resolver.getresource(fqdn, Resolv::DNS::Resource::IN::CNAME)
+        return cname.name if cname
+      rescue Exception => e
+        puts "Gary likes biscuits, nom nom #{e.backtrace}"
+      end
+      sleep 1
+      attempt = attempt +1
+   end
+   raise "Lookup #{fqdn} failed after #{max_attempts} attempts" if (attempt <= max_attempts)
   end
 
 end
@@ -233,6 +239,7 @@ class Provision::DNS
       network = network_name.to_sym
       @logger.info("Trying to allocate CNAMEs for network #{network}")
       next unless @networks.has_key?(network)
+      next unless spec[:cnames].has_key?(network)
       result.merge!(@networks[network].add_cnames_for(spec))
     end
     @logger.info("Allocated #{result}")

@@ -5,8 +5,7 @@ include MCollective::RPC
 mc = rpcclient("computenode")
 mc.identity_filter "grichards-desktop.youdevise.com"
 mc.verbose = true
-printrpc mc.allocate_cnames(:specs => [
-#printrpc mc.allocate_ips(:specs => [
+specs = [
   {
     :networks => [
       :mgmt,
@@ -20,7 +19,7 @@ printrpc mc.allocate_cnames(:specs => [
     },
     :cnames => {
       :prod => {
-        'c.dev.net.local' => 'dev-refproxy-001.dev.net.local',
+        'c.dev.net.local' => 'dev-tfundsproxy-001-grichards.dev.net.local',
       }
     },
     :ram => '2097152',
@@ -40,13 +39,16 @@ printrpc mc.allocate_cnames(:specs => [
     },
     :cnames => {
       :prod => {
-        'a.dev.net.local' => 'dev-refproxy-001.dev.net.local',
-        'b.dev.net.local' => 'dev-refproxy-001.dev.net.local',
+        'a.dev.net.local' => 'dev-tfundsproxy-001-grichards.dev.net.local',
+        'b.dev.net.local' => 'dev-tfundsproxy-001-grichards.dev.net.local',
       }
     },
     :ram => '2097152',
     :domain => 'dev.net.local',
     :fabric => 'local'
   },
-
-])
+]
+printrpc mc.allocate_ips(:specs => specs)
+printrpc mc.allocate_cnames(:specs => specs)
+#printrpc mc.free_cnames(:specs => specs)
+#printrpc mc.allocate_ips(:specs => [
