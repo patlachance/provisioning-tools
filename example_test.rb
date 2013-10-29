@@ -49,6 +49,7 @@ specs = [
   },
 ]
 printrpc mc.allocate_ips(:specs => specs)
-printrpc mc.allocate_cnames(:specs => specs)
+printrpc mc.add_cnames(:specs => specs)
+printrpc mc.remove_cnames(:specs => specs)
 #printrpc mc.free_cnames(:specs => specs)
 #printrpc mc.allocate_ips(:specs => [

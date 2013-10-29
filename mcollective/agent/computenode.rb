@@ -55,17 +55,17 @@ module MCollective
         return listener.results
       end
 
-      def allocate_cnames(specs, listener)
+      def add_cnames(specs, listener)
         queue = prepare_work_queue(specs, listener)
-        logger.info("Allocating CNAMEs #{specs}")
-        queue.allocate_cnames(specs)
+        logger.info("Adding CNAME's #{specs}")
+        queue.add_cnames(specs)
         return listener.results
       end
 
-      def free_cnames(specs, listener)
+      def remove_cnames(specs, listener)
         queue = prepare_work_queue(specs, listener)
-        logger.info("Freeing CNAMEs for #{specs.size} nodes")
-        queue.free_cnames(specs)
+        logger.info("Removing CNAME's for #{specs.size} nodes")
+        queue.remove_cnames(specs)
         return listener.results
       end
 
@@ -110,14 +110,14 @@ module MCollective
         reply.data = free_ips(specs, new_listener())
       end
 
-      action "allocate_cnames" do
+      action "add_cnames" do
         specs = request[:specs]
-        reply.data = allocate_cnames(specs, new_listener())
+        reply.data = add_cnames(specs, new_listener())
       end
 
-      action "free_cnames" do
+      action "remove_cnames" do
         specs = request[:specs]
-        reply.data = free_cnames(specs, new_listener())
+        reply.data = remove_cnames(specs, new_listener())
       end
 
     end

@@ -60,18 +60,20 @@ class Provision::WorkQueue
     process()
   end
 
-  def allocate_cnames(specs)
+  def add_cnames(specs)
     specs.each do |spec|
       @queue << SpecTask.new(spec) do
-        @provisioning_service.allocate_cnames(spec)
+        @provisioning_service.add_cnames(spec)
       end
     end
     process()
   end
 
-  def free_cnames(cnames)
-    cnames.each do |fqdn|
-      @provisioning_service.free_cname(fqdn)
+  def remove_cnames(specs)
+    specs.each do |spec|
+      @queue << SpecTask.new(spec) do
+        @provisioning_service.remove_cnames(spec)
+      end
     end
     process()
   end

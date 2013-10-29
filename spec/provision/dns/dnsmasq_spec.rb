@@ -321,7 +321,7 @@ describe Provision::DNS::DNSMasq do
       )
 
       thing.allocate_ips_for(spec)
-      thing.allocate_cnames_for(spec)
+      thing.add_cnames_for(spec)
 
       File.open("#{dir}/etc/hosts", 'r') { |f| f.read.should eql("\n192.168.5.2 example.mgmt.youdevise.com\n192.168.6.2 example.youdevise.com cname1.youdevise.com\n") }
     }

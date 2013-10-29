@@ -79,6 +79,37 @@ class Provision::DNS::DNSMasqNetwork < Provision::DNSNetwork
     end
   end
 
+  def remove_cname_lookup(fqdn, cname_fqdn)
+    $etc_hosts_mutex.synchronize do
+      parse_hosts
+      #return if @cnames_by_fqdn[fqdn] == cname_fqdn
+      ip = @by_name[cname_fqdn]
+      if ip
+        temp_file = Tempfile.new('etc_hosts_update')
+        begin
+          File.open(@hosts_file, 'r') do |file|
+            file.each_line do |line|
+              if line =~ /^#{Regexp.escape(ip)}\s+/
+                temp_file.puts line.gsub(/\s+#{Regexp.escape(fqdn)}/, '').strip
+              else
+                temp_file.puts line
+              end
+            end
+          end
+          temp_file.rewind
+          FileUtils.mv(temp_file.path, @hosts_file)
+          File.chmod(0644, @hosts_file)
+          reload_dnsmasq
+        ensure
+          temp_file.close
+          temp_file.unlink
+        end
+      else
+        raise "Unable to add CNAME for '#{fqdn}' as CNAME: '#{cname_fqdn}' does not have an IP address associated with it"
+      end
+    end
+  end
+
   def parse_hosts
     @by_name = {}
     @by_ip = {}
